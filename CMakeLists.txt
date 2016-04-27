@@ -1,5 +1,15 @@
-CMAKE_MINIMUM_REQUIRED (VERSION 2.8.6)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.0.0)
+
+include("cmake/HunterGate.cmake")
+HunterGate(
+  URL "https://github.com/ruslo/hunter/archive/v0.14.13.tar.gz"
+  SHA1 "95a031bbab876c3c049b3cd4c65b7a2981dad202"
+)
+
 PROJECT (msgpack)
+
+hunter_add_package(ZLIB)
+hunter_add_package(OpenSSL)
 
 FILE (READ ${CMAKE_CURRENT_SOURCE_DIR}/include/msgpack/version_master.h contents)
 STRING (REGEX MATCH "#define MSGPACK_VERSION_MAJOR *([0-9a-zA-Z_]*)" NULL_OUT ${contents})
@@ -110,8 +120,10 @@ FOREACH (F ${PREPROCESSOR_FILES})
 ENDFOREACH ()
 
 FIND_PACKAGE (GTest)
-FIND_PACKAGE (ZLIB)
-FIND_PACKAGE (Threads)
+FIND_PACKAGE (ZLIB CONFIG REQUIRED)
+FIND_PACKAGE (OpenSSL REQUIRED)
+# Disabled: To avoid warning of CMake 3.5
+#FIND_PACKAGE (Threads)
 IF (GTEST_FOUND AND ZLIB_FOUND AND THREADS_FOUND)
     OPTION (MSGPACK_BUILD_TESTS "Build msgpack tests." ON)
 ENDIF ()
@@ -260,13 +272,18 @@ IF (MSGPACK_ENABLE_SHARED)
     ADD_LIBRARY (msgpackc SHARED
         ${msgpackc_SOURCES}
         ${msgpackc_HEADERS}
-    )
+        )
+    TARGET_LINK_LIBRARIES(msgpackc INTERFACE OpenSSL::SSL OpenSSL::Crypto ZLIB::zlib)
+    LIST(APPEND MSGPACK_INSTALLTARGETS "msgpackc")
 ENDIF ()
 
 ADD_LIBRARY (msgpackc-static STATIC
     ${msgpackc_SOURCES}
     ${msgpackc_HEADERS}
 )
+
+TARGET_LINK_LIBRARIES(msgpackc-static LINK_PUBLIC OpenSSL::SSL OpenSSL::Crypto ZLIB::zlib)
+LIST(APPEND MSGPACK_INSTALLTARGETS "msgpackc-static")
 
 SET_TARGET_PROPERTIES (msgpackc-static PROPERTIES OUTPUT_NAME "msgpackc")
 IF (MSGPACK_ENABLE_SHARED)
@@ -321,12 +338,6 @@ IF (MSGPACK_BUILD_EXAMPLES)
     ADD_SUBDIRECTORY (example)
 ENDIF ()
 
-IF (MSGPACK_ENABLE_SHARED)
-    SET (MSGPACK_INSTALLTARGETS msgpackc msgpackc-static)
-ELSE()
-    SET (MSGPACK_INSTALLTARGETS msgpackc-static)
-ENDIF ()
-
 INSTALL (TARGETS ${MSGPACK_INSTALLTARGETS} DESTINATION ${CMAKE_INSTALL_LIBDIR})
 INSTALL (DIRECTORY include DESTINATION ${CMAKE_INSTALL_PREFIX})
 IF (NOT MSVC)
@@ -379,3 +390,49 @@ IF (DOXYGEN_FOUND)
         DEPENDS doxygen_c doxygen_cpp
     )
 ENDIF ()
+
+set(target_to_export ${MSGPACK_INSTALLTARGETS})
+IF (MSGPACK_ENABLE_CXX)
+  add_library(msgpack INTERFACE)
+  target_include_directories(msgpack INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+  target_link_libraries(msgpack INTERFACE OpenSSL::SSL OpenSSL::Crypto ZLIB::zlib)
+  list(APPEND target_to_export "msgpack")
+ENDIF()
+
+set(include_install_dir "include")
+set(lib_install_dir "lib")
+set(config_install_dir "lib/cmake/${PROJECT_NAME}")
+set(config_export_name "${PROJECT_NAME}Config")
+set(targets_export_name "${PROJECT_NAME}Targets")
+set(project_config "${CMAKE_CURRENT_BINARY_DIR}/${config_export_name}.cmake")
+set(version_config "${CMAKE_CURRENT_BINARY_DIR}/${config_export_name}Version.cmake")
+set(namespace "${PROJECT_NAME}::")
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file( # Uses target_exports_name
+    "cmake/Config.cmake.in"
+    "${project_config}"
+    INSTALL_DESTINATION "${config_install_dir}"
+)
+write_basic_package_version_file(
+  "${version_config}"
+  VERSION ${VERSION}
+  COMPATIBILITY SameMajorVersion)
+
+install(
+  TARGETS ${target_to_export}
+  EXPORT "${targets_export_name}"
+  INCLUDES DESTINATION "${include_install_dir}"
+  LIBRARY DESTINATION ${lib_install_dir}
+  ARCHIVE DESTINATION ${lib_install_dir}
+  )
+
+install(
+  EXPORT "${targets_export_name}"
+  NAMESPACE "${namespace}"
+  DESTINATION "${config_install_dir}")
+install(
+  FILES "${project_config}" "${version_config}"
+  DESTINATION "${config_install_dir}")

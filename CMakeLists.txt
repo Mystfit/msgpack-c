@@ -2,8 +2,8 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.8.6)
 
 include("cmake/HunterGate.cmake")
 HunterGate(
-    URL "https://github.com/ruslo/hunter/archive/v0.14.12.tar.gz"
-    SHA1 "2d444140db0d53393b5490604006bb4f4896a444"
+  URL "https://github.com/ruslo/hunter/archive/v0.14.13.tar.gz"
+  SHA1 "95a031bbab876c3c049b3cd4c65b7a2981dad202"
 )
 
 PROJECT (msgpack)
@@ -273,8 +273,7 @@ IF (MSGPACK_ENABLE_SHARED)
         ${msgpackc_SOURCES}
         ${msgpackc_HEADERS}
         )
-    TARGET_LINK_LIBRARIES(msgpackc INTERFACE ${OPENSSL_LIBRARIES} ZLIB::zlib)
-    TARGET_INCLUDE_DIRECTORIES(msgpackc INTERFACE ${OPENSSL_INCLUDE_DIR})
+    TARGET_LINK_LIBRARIES(msgpackc INTERFACE OpenSSL::SSL OpenSSL::Crypto ZLIB::zlib)
     LIST(APPEND MSGPACK_INSTALLTARGETS "msgpackc")
 ENDIF ()
 
@@ -283,8 +282,7 @@ ADD_LIBRARY (msgpackc-static STATIC
     ${msgpackc_HEADERS}
 )
 
-TARGET_LINK_LIBRARIES(msgpackc-static LINK_PUBLIC ${OPENSSL_LIBRARIES} ZLIB::zlib)
-TARGET_INCLUDE_DIRECTORIES(msgpackc-static INTERFACE ${OPENSSL_INCLUDE_DIR})
+TARGET_LINK_LIBRARIES(msgpackc-static LINK_PUBLIC OpenSSL::SSL OpenSSL::Crypto ZLIB::zlib)
 LIST(APPEND MSGPACK_INSTALLTARGETS "msgpackc-static")
 
 SET_TARGET_PROPERTIES (msgpackc-static PROPERTIES OUTPUT_NAME "msgpackc")
@@ -399,7 +397,7 @@ IF (MSGPACK_ENABLE_CXX)
   target_include_directories(msgpack INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
-  target_link_libraries(msgpack INTERFACE ${OPENSSL_LIBRARIES} ZLIB::zlib)
+  target_link_libraries(msgpack INTERFACE OpenSSL::SSL OpenSSL::Crypto ZLIB::zlib)
   list(APPEND target_to_export "msgpack")
 ENDIF()
 

@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED (VERSION 2.8.6)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.0.0)
 
 include("cmake/HunterGate.cmake")
 HunterGate(
